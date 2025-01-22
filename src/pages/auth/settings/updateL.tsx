@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { ILogin } from "../../../helpers/types";
+
 import { METHODS, useHttpMutation } from "../../../helpers/useHttp";
+import { ILogin } from "../../../helpers/types";
 
 export const UpdateLogin = () => {
     const { register, handleSubmit, formState: { errors } } = useForm<ILogin>();

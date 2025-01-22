@@ -1,84 +1,109 @@
-import { useForm } from "react-hook-form";
-import { IPost, IResponse } from "../../../../helpers/types";
-import { useRef, useState } from "react";
+import { useState, useRef } from "react";
+import { useOutletContext } from "react-router-dom";
+import { IPost } from "../../../../helpers/types";
 import { Http } from "../../../../helpers/api";
 
-export const AddPost = ({ onNewPost }: { onNewPost: (newPost: IPost) => void }) => {
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<IPost>();
+export const AddPost = () => {
+  const [description, setDescription] = useState<string>("");
   const [preview, setPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showInput, setShowInput] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const photo = useRef<HTMLInputElement | null>(null);
+  const { refetch } = useOutletContext<IPost>();
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  
 
-    setPreview(URL.createObjectURL(file));
+  const handleSubmit = async () => {
+    if (!photo.current?.files?.[0]) {
+      setErrorMessage("Please provide a photo.");
+      return;
+    }
+    const formData = new FormData();
+    formData.append("photo", photo.current?.files?.[0] || "");
+    formData.append("content", description);
 
-    const form = new FormData();
-    form.append("photo", file);
-
-    Http.patch<IResponse>("/posts/upload", form)
-      .then(() => console.log("Image uploaded successfully"))
-      .catch((error) => console.error("Upload failed:", error));
-  };
-
-  const onSubmit = (data: IPost) => {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
-
-    const newPost: IPost = { ...data, photo: file };
-
-    onNewPost(newPost);
-    reset();
+    await Http.post("/posts", formData);
+    setDescription("");
     setPreview(null);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (photo.current) {
+      photo.current.value = "";
+    }
+    setShowInput(false);
+    refetch();
+    setErrorMessage("");
+  };
+  const handlePreview = () => {
+    const file = photo.current?.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => setPreview(reader.result as string);
+      reader.readAsDataURL(file);
     }
   };
 
   return (
-    <form 
-  className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-lg space-y-6 max-w-2xl ml-20 relative left-[-45%] border border-gray-200 dark:border-gray-700"
-  onSubmit={handleSubmit(onSubmit)}
->
-  <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 text-center">Add a New Post</h3>
-  <div className="space-y-3">
-    <label className="block text-gray-600 dark:text-gray-300 font-medium">Upload Image</label>
-    <label className="block w-full text-center bg-blue-500 dark:bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-600 dark:hover:bg-blue-700 transition cursor-pointer">
-      Choose File
-      <input
-        id="photo"
-        type="file"
-        className="hidden"
-        accept="image/*"
-        ref={fileInputRef}
-        onChange={handleImageChange}
-      />
-    </label>
-    {errors.photo && <p className="text-red-500 text-sm">{errors.photo.message}</p>}
-    {preview && (
-      <div className="mt-2 flex justify-center">
-        <img src={preview} alt="Preview" className="w-48 h-48 object-cover rounded-lg shadow-md" />
-      </div>
-    )}
-  </div>
-  <div>
-    <label className="block text-gray-600 dark:text-gray-300 font-medium mb-2">Description</label>
-    <textarea
-      {...register("content", { required: "Please fill this field" })}
-      placeholder="Write your post here"
-      className="w-full h-28 border border-gray-300 dark:border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:text-gray-200 dark:placeholder-gray-400"
-    />
-    {errors.content && <p className="text-red-500 text-sm">{errors.content.message}</p>}
-  </div>
-  <button
-    type="submit"
-    className="w-full bg-green-500 dark:bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-600 dark:hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-700 transition duration-300"
-  >
-    Post
-  </button>
-</form>
+    <div className="max-w-xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-300 dark:border-gray-700">
+      {!showInput && (
+        <button
+          onClick={() => setShowInput(true)}
+          className="flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-lg shadow-md transition duration-300 w-full"
+        >
+          <img
+            src="https://img.icons8.com/ios-filled/50/ffffff/plus.png"
+            alt="Add Post"
+            className="w-5 h-5 mr-2"
+          />
+          Add Post
+        </button>
+      )}
 
+      {showInput && (
+        <>
+          <input
+            type="file"
+            ref={photo}
+            className="hidden"
+            onChange={handlePreview}
+          />
+
+         
+          
+            <button
+              onClick={() => photo.current?.click()}
+              className="bg-gray-700 hover:bg-gray-800 text-white px-5 py-2 rounded-lg shadow-md transition duration-300"
+            >
+              Choose Photo
+            </button>
+           
+         <textarea
+            className="w-full p-3 bg-gray-100 dark:bg-gray-700 dark:text-white rounded-md border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+            placeholder="Write a description..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          ></textarea>
+
+          <button
+              onClick={handleSubmit}
+              className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg shadow-md transition duration-300"
+            >
+              Post
+            </button>
+
+          {preview && (
+            <div className="mt-4 flex justify-center">
+              <img
+                src={preview}
+                alt="Preview"
+                className="w-32 h-32 object-cover rounded-lg shadow-md"
+              />
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="text-red-500 text-sm mt-2">{errorMessage}</div>
+          )}
+        </>
+      )}
+    </div>
   );
-}; 
+};
